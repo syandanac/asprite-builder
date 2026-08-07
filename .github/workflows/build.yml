@@ -1,1 +1,57 @@
+name: Build Aseprite
 
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout builder repo
+      uses: actions/checkout@v4
+
+    - name: Clone Aseprite
+      run: |
+        git clone --recursive https://github.com/aseprite/aseprite.git
+
+    - name: Download Skia
+      shell: powershell
+      run: |
+        Invoke-WebRequest `
+        -Uri https://github.com/aseprite/skia/releases/latest/download/Skia-Windows-Release-x64.zip `
+        -OutFile skia.zip
+
+        Expand-Archive skia.zip -DestinationPath skia
+
+    - name: Configure
+      shell: cmd
+      run: |
+        cd aseprite
+        mkdir build
+        cd build
+
+        cmake ^
+        -G Ninja ^
+        -DLAF_BACKEND=skia ^
+        -DSKIA_DIR=%GITHUB_WORKSPACE%\skia ^
+        ..
+
+    - name: Compile
+      shell: cmd
+      run: |
+        cd aseprite\build
+        ninja aseprite
+
+    - name: Package
+      shell: powershell
+      run: |
+        Compress-Archive `
+        -Path aseprite\build\bin\* `
+        -DestinationPath aseprite-windows.zip
+
+    - name: Upload Aseprite
+      uses: actions/upload-artifact@v4
+      with:
+        name: aseprite-windows
+        path: aseprite-windows.zip
