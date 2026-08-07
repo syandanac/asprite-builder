@@ -19,6 +19,28 @@ jobs:
           submodules: recursive
           path: aseprite
 
+      - name: Locate Visual Studio
+        shell: powershell
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -latest `
+            -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+
+          echo "VS_PATH=$vs" >> $env:GITHUB_ENV
+
+          Write-Host "Found Visual Studio:"
+          Write-Host $vs
+
+      - name: Enable MSVC environment
+        shell: cmd
+        run: |
+          call "%VS_PATH%\Common7\Tools\VsDevCmd.bat" -arch=x64
+
+          where cl
+          cl
+
       - name: Download Skia
         shell: powershell
         run: |
@@ -29,14 +51,6 @@ jobs:
           Expand-Archive `
             -Path skia.zip `
             -DestinationPath skia
-
-      - name: Verify MSVC compiler
-        shell: cmd
-        run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
-
-          where cl
-          cl
 
       - name: Clean build folder
         shell: powershell
@@ -50,7 +64,7 @@ jobs:
       - name: Configure CMake
         shell: cmd
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+          call "%VS_PATH%\Common7\Tools\VsDevCmd.bat" -arch=x64
 
           cd aseprite
           mkdir build
@@ -69,7 +83,7 @@ jobs:
       - name: Build Aseprite
         shell: cmd
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+          call "%VS_PATH%\Common7\Tools\VsDevCmd.bat" -arch=x64
 
           cd aseprite\build
 
