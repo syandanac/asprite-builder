@@ -25,10 +25,14 @@ jobs:
         shell: powershell
         run: |
           Invoke-WebRequest `
-          -Uri https://github.com/aseprite/skia/releases/latest/download/Skia-Windows-Release-x64.zip `
+          -Uri https://github.com/aseprite/skia/releases/download/m124-616a3d5a06/Skia-Windows-Release-x64.zip `
           -OutFile skia.zip
 
           Expand-Archive skia.zip -DestinationPath skia
+
+      - name: Clean old build
+        run: |
+          Remove-Item -Recurse -Force aseprite\build -ErrorAction SilentlyContinue
 
       - name: Configure CMake
         shell: cmd
