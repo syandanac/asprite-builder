@@ -1,12 +1,63 @@
-name: Test Aseprite Build Trigger
+name: Build Aseprite
 
 on:
   workflow_dispatch:
 
 jobs:
-  test:
+  build:
     runs-on: windows-latest
 
     steps:
-      - name: Test
-        run: echo Hello GitHub Actions
+      - name: Checkout builder repo
+        uses: actions/checkout@v4
+
+      - name: Checkout Aseprite source
+        uses: actions/checkout@v4
+        with:
+          repository: aseprite/aseprite
+          submodules: recursive
+          path: aseprite
+
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      - name: Download Skia
+        shell: powershell
+        run: |
+          Invoke-WebRequest `
+          -Uri https://github.com/aseprite/skia/releases/latest/download/Skia-Windows-Release-x64.zip `
+          -OutFile skia.zip
+
+          Expand-Archive skia.zip -DestinationPath skia
+
+      - name: Configure CMake
+        shell: cmd
+        run: |
+          cd aseprite
+          mkdir build
+          cd build
+
+          cmake ^
+          -G Ninja ^
+          -DLAF_BACKEND=skia ^
+          -DSKIA_DIR=%GITHUB_WORKSPACE%\skia ^
+          ..
+
+      - name: Build Aseprite
+        shell: cmd
+        run: |
+          cd aseprite\build
+          ninja aseprite
+
+      - name: Package result
+        shell: powershell
+        run: |
+          Compress-Archive `
+          -Path aseprite\build\bin\* `
+          -DestinationPath aseprite-windows.zip
+
+      - name: Upload Aseprite
+        uses: actions/upload-artifact@v4
+        with:
+          name: aseprite-windows
+          path: aseprite-windows.zip
