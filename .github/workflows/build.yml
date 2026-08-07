@@ -18,21 +18,25 @@ jobs:
           submodules: recursive
           path: aseprite
 
-      - name: Install Ninja
-        run: choco install ninja -y
-
       - name: Download Skia
         shell: powershell
         run: |
           Invoke-WebRequest `
-          -Uri https://github.com/aseprite/skia/releases/download/m124-616a3d5a06/Skia-Windows-Release-x64.zip `
-          -OutFile skia.zip
+            -Uri https://github.com/aseprite/skia/releases/download/m124-08a5439a6b/Skia-Windows-Release-x64.zip `
+            -OutFile skia.zip
 
-          Expand-Archive skia.zip -DestinationPath skia
+          Expand-Archive `
+            -Path skia.zip `
+            -DestinationPath skia
 
-      - name: Clean old build
+      - name: Clean build folder
+        shell: powershell
         run: |
-          Remove-Item -Recurse -Force aseprite\build -ErrorAction SilentlyContinue
+          Remove-Item `
+            -Recurse `
+            -Force `
+            aseprite\build `
+            -ErrorAction SilentlyContinue
 
       - name: Configure CMake
         shell: cmd
@@ -42,10 +46,13 @@ jobs:
           cd build
 
           cmake ^
-          -G Ninja ^
-          -DLAF_BACKEND=skia ^
-          -DSKIA_DIR=%GITHUB_WORKSPACE%\skia ^
-          ..
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo ^
+            -DLAF_BACKEND=skia ^
+            -DSKIA_DIR=%GITHUB_WORKSPACE%\skia ^
+            -DSKIA_LIBRARY_DIR=%GITHUB_WORKSPACE%\skia\out\Release-x64 ^
+            -DSKIA_LIBRARY=%GITHUB_WORKSPACE%\skia\out\Release-x64\skia.lib ^
+            -G Ninja ^
+            ..
 
       - name: Build Aseprite
         shell: cmd
@@ -53,15 +60,15 @@ jobs:
           cd aseprite\build
           ninja aseprite
 
-      - name: Package result
+      - name: Package Aseprite
         shell: powershell
         run: |
           Compress-Archive `
-          -Path aseprite\build\bin\* `
-          -DestinationPath aseprite-windows.zip
+            -Path aseprite\build\bin\* `
+            -DestinationPath aseprite-windows.zip
 
-      - name: Upload Aseprite
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aseprite-windows
+          name: aseprite-windows-x64
           path: aseprite-windows.zip
