@@ -8,7 +8,6 @@ jobs:
     runs-on: windows-latest
 
     steps:
-
       - name: Checkout builder repo
         uses: actions/checkout@v4
 
@@ -19,27 +18,10 @@ jobs:
           submodules: recursive
           path: aseprite
 
-      - name: Locate Visual Studio
-        shell: powershell
-        run: |
-          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -latest `
-            -products * `
-            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-            -property installationPath
-
-          echo "VS_PATH=$vs" >> $env:GITHUB_ENV
-
-          Write-Host "Found Visual Studio:"
-          Write-Host $vs
-
-      - name: Enable MSVC environment
-        shell: cmd
-        run: |
-          call "%VS_PATH%\Common7\Tools\VsDevCmd.bat" -arch=x64
-
-          where cl
-          cl
+      - name: Setup MSVC Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
 
       - name: Download Skia
         shell: powershell
@@ -52,42 +34,22 @@ jobs:
             -Path skia.zip `
             -DestinationPath skia
 
-      - name: Clean build folder
-        shell: powershell
-        run: |
-          Remove-Item `
-            -Recurse `
-            -Force `
-            aseprite\build `
-            -ErrorAction SilentlyContinue
-
       - name: Configure CMake
         shell: cmd
         run: |
-          call "%VS_PATH%\Common7\Tools\VsDevCmd.bat" -arch=x64
-
-          cd aseprite
-          mkdir build
-          cd build
-
-          cmake ^
+          cmake -B aseprite/build -S aseprite ^
             -G Ninja ^
             -DCMAKE_BUILD_TYPE=RelWithDebInfo ^
-            -DCMAKE_IGNORE_PATH=C:\mingw64\bin;C:\Strawberry\c\bin ^
+            -DCMAKE_IGNORE_PATH="C:\mingw64\bin;C:\Strawberry\c\bin" ^
             -DLAF_BACKEND=skia ^
-            -DSKIA_DIR=%GITHUB_WORKSPACE%\skia ^
-            -DSKIA_LIBRARY_DIR=%GITHUB_WORKSPACE%\skia\out\Release-x64 ^
-            -DSKIA_LIBRARY=%GITHUB_WORKSPACE%\skia\out\Release-x64\skia.lib ^
-            ..
+            -DSKIA_DIR="%GITHUB_WORKSPACE%\skia" ^
+            -DSKIA_LIBRARY_DIR="%GITHUB_WORKSPACE%\skia\out\Release-x64" ^
+            -DSKIA_LIBRARY="%GITHUB_WORKSPACE%\skia\out\Release-x64\skia.lib"
 
       - name: Build Aseprite
         shell: cmd
         run: |
-          call "%VS_PATH%\Common7\Tools\VsDevCmd.bat" -arch=x64
-
-          cd aseprite\build
-
-          ninja aseprite
+          ninja -C aseprite/build aseprite
 
       - name: Package Aseprite
         shell: powershell
